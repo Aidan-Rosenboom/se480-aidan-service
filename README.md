@@ -18,7 +18,7 @@ Open in a Codespace (Code → Codespaces → Create codespace on main), then:
 - .github/workflows/ci.yml — CI
 
 ## Help received
-I did this all myself with help from google
+I did this all myself with help from google and gitlab docs
 
 ## AI tools used
 Used a bit of google AI, otherwise I stuck to the github docs and the lab handout.
