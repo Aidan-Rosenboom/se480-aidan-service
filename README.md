@@ -1,6 +1,6 @@
-# <Your service name>
+# se480-aidna-service
 
-Deployed at: <public URL>
+Deployed at: https://se480-aidan-service.onrender.com
 
 ## Run it
 Open in a Codespace (Code → Codespaces → Create codespace on main), then:
@@ -18,7 +18,7 @@ Open in a Codespace (Code → Codespaces → Create codespace on main), then:
 - .github/workflows/ci.yml — CI
 
 ## Help received
-<who helped and how, or "none">
+I did this all myself with help from google
 
 ## AI tools used
-<where, or "none">
+Used a bit of google AI, otherwise I stuck to the github docs and the lab handout.
