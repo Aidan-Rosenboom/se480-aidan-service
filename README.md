@@ -21,4 +21,4 @@ Open in a Codespace (Code → Codespaces → Create codespace on main), then:
 I did this all myself with help from google and gitlab docs
 
 ## AI tools used
-Used a bit of google AI, otherwise I stuck to the github docs and the lab handout.
+Used a bit of google AI and Chat GPT to solve my smoke.sh LF line sequence that caused the smoke test for the deployment to fail, otherwise I stuck to the github docs and the lab handout.
