@@ -1,0 +1,473 @@
+openapi: 3.1.0
+info:
+  title: Patch Notes API
+  version: 1.0.0
+  description: |
+    API for retrieving Steam patch notes and sharing user-posted patch note
+    summaries. All endpoints use the /v1 path prefix. Within v1, existing
+    paths, methods, request fields, response shapes, and status-code meanings
+    will not change incompatibly; additive fields and endpoints may be added.
+servers:
+  - url: https://se480-aidan-service.onrender.com
+    description: Production server
+tags:
+  - name: Users
+  - name: Sessions
+  - name: Patch note summaries
+  - name: Steam patch notes
+paths:
+  /v1/users:
+    get:
+      tags: [Users]
+      summary: List users
+      operationId: listUsers
+      responses:
+        '200':
+          description: Users returned successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+              example:
+                - user_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                  first_name: Aidan
+                  last_name: Rosenboom
+                  steam_id: 76561198012345678
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+    post:
+      tags: [Users]
+      summary: Create a user
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserInput'
+            example:
+              first_name: Aidan
+              last_name: Rosenboom
+              steam_id: 76561198012345678
+      responses:
+        '201':
+          description: User created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              example:
+                user_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                first_name: Aidan
+                last_name: Rosenboom
+                steam_id: 76561198012345678
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+  /v1/users/{user_id}:
+    get:
+      tags: [Users]
+      summary: Get one user
+      operationId: getUser
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: User returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              example:
+                user_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                first_name: Aidan
+                last_name: Rosenboom
+                steam_id: 76561198012345678
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+  /v1/sessions:
+    post:
+      tags: [Sessions]
+      summary: Authenticate a user and create a session
+      operationId: createSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionInput'
+            example:
+              steam_id: 76561198012345678
+              password: example-password
+      responses:
+        '201':
+          description: Session created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+              example:
+                session_id: 8f14e45f-ea67-4b2f-9f4d-6a1e2d3c4b5a
+                user_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                access_token: eyJhbGciOiJIUzI1NiJ9.example
+                expires_at: '2026-11-05T05:03:28Z'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+  /v1/patch-note-summaries:
+    get:
+      tags: [Patch note summaries]
+      summary: List patch note summaries for a game
+      operationId: listPatchNoteSummaries
+      parameters:
+        - $ref: '#/components/parameters/GameIdQuery'
+      responses:
+        '200':
+          description: Patch note summaries returned successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PatchNoteSummary'
+              example:
+                - summary_id: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
+                  game_id: 10
+                  text_content: Added a new map and balance changes to ranked play.
+                  link: https://example.com/summary
+                  title: Season update
+                  update_version: '1.4.0'
+                  created_at: '2026-11-04T04:00:00Z'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+    post:
+      tags: [Patch note summaries]
+      summary: Create a user-posted patch note summary
+      operationId: createPatchNoteSummary
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchNoteSummaryInput'
+            example:
+              game_id: 10
+              text_content: Added a new map and balance changes to ranked play.
+              link: https://example.com/summary
+              title: Season update
+              update_version: '1.4.0'
+      responses:
+        '201':
+          description: Patch note summary created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatchNoteSummary'
+              example:
+                summary_id: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
+                game_id: 10
+                text_content: Added a new map and balance changes to ranked play.
+                link: https://example.com/summary
+                title: Season update
+                update_version: '1.4.0'
+                created_at: '2026-11-04T04:00:00Z'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+  /v1/patch-note-summaries/{summary_id}:
+    get:
+      tags: [Patch note summaries]
+      summary: Get one patch note summary for a game
+      operationId: getPatchNoteSummary
+      parameters:
+        - $ref: '#/components/parameters/SummaryId'
+        - $ref: '#/components/parameters/GameIdQuery'
+      responses:
+        '200':
+          description: Patch note summary returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatchNoteSummary'
+              example:
+                summary_id: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
+                game_id: 10
+                text_content: Added a new map and balance changes to ranked play.
+                link: https://example.com/summary
+                title: Season update
+                update_version: '1.4.0'
+                created_at: '2026-11-04T04:00:00Z'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+    delete:
+      tags: [Patch note summaries]
+      summary: Delete one patch note summary
+      operationId: deletePatchNoteSummary
+      parameters:
+        - $ref: '#/components/parameters/SummaryId'
+      responses:
+        '204':
+          description: Patch note summary deleted successfully.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+  /v1/steam-patch-notes:
+    get:
+      tags: [Steam patch notes]
+      summary: Fetch patch notes for a game from Steam's API
+      operationId: getSteamPatchNotes
+      parameters:
+        - $ref: '#/components/parameters/GameIdQuery'
+      responses:
+        '200':
+          description: Steam patch notes returned successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SteamPatchNote'
+              example:
+                - game_id: 10
+                  text_content: Improved matchmaking and fixed crash issues.
+                  link: https://store.steampowered.com/news/app/10
+                  title: Maintenance update
+                  update_version: '2026.11.04'
+                  published_at: '2026-11-04T03:30:00Z'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+components:
+  parameters:
+    UserId:
+      name: user_id
+      in: path
+      required: true
+      description: Opaque user identifier.
+      schema:
+        type: string
+        format: uuid
+      example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+    SummaryId:
+      name: summary_id
+      in: path
+      required: true
+      description: Opaque patch note summary identifier.
+      schema:
+        type: string
+        format: uuid
+      example: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
+    GameIdQuery:
+      name: game_id
+      in: query
+      required: true
+      description: Steam application identifier used to select one game.
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+      example: 10
+  responses:
+    ValidationError:
+      description: The request is missing or contains invalid data.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: https://api.example.com/problems/validation-error
+            title: Validation error
+            status: 400
+            detail: game_id must be a positive integer.
+            instance: /v1/patch-note-summaries
+    NotFoundError:
+      description: The requested resource does not exist.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: https://api.example.com/problems/not-found
+            title: Not found
+            status: 404
+            detail: No resource matched the supplied identifier.
+            instance: /v1/patch-note-summaries/6ba7b810-9dad-11d1-80b4-00c04fd430c8
+    ConflictError:
+      description: The request conflicts with the current resource state.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: https://api.example.com/problems/conflict
+            title: Conflict
+            status: 409
+            detail: A resource with the supplied unique value already exists.
+            instance: /v1/users
+  schemas:
+    ProblemDetails:
+      type: object
+      description: RFC 9457-style problem-details document.
+      required: [type, title, status, detail, instance]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          description: URI identifying the type of problem.
+          example: https://api.example.com/problems/validation-error
+        title:
+          type: string
+          description: Short, human-readable summary of the problem.
+          example: Validation error
+        status:
+          type: integer
+          description: HTTP status code for this occurrence of the problem.
+          example: 400
+        detail:
+          type: string
+          description: Human-readable explanation specific to this occurrence.
+          example: game_id must be a positive integer.
+        instance:
+          type: string
+          format: uri-reference
+          description: URI reference identifying the request or occurrence.
+          example: /v1/patch-note-summaries
+    User:
+      type: object
+      required: [user_id, first_name, last_name, steam_id]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        first_name:
+          type: string
+          example: Aidan
+        last_name:
+          type: string
+          example: Rosenboom
+        steam_id:
+          type: integer
+          format: int64
+          example: 76561198012345678
+    UserInput:
+      type: object
+      required: [first_name, last_name, steam_id]
+      properties:
+        first_name:
+          type: string
+        last_name:
+          type: string
+        steam_id:
+          type: integer
+          format: int64
+          minimum: 1
+    SessionInput:
+      type: object
+      required: [steam_id, password]
+      properties:
+        steam_id:
+          type: integer
+          format: int64
+          minimum: 1
+        password:
+          type: string
+          format: password
+          minLength: 1
+    Session:
+      type: object
+      required: [session_id, user_id, access_token, expires_at]
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        access_token:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+    PatchNoteSummaryInput:
+      type: object
+      required: [game_id, text_content, update_version]
+      properties:
+        game_id:
+          type: integer
+          format: int64
+          minimum: 1
+        text_content:
+          type: string
+          minLength: 1
+        link:
+          type: string
+          format: uri
+        title:
+          type: string
+        update_version:
+          type: string
+          minLength: 1
+    PatchNoteSummary:
+      allOf:
+        - $ref: '#/components/schemas/PatchNoteSummaryInput'
+        - type: object
+          required: [summary_id, created_at]
+          properties:
+            summary_id:
+              type: string
+              format: uuid
+            created_at:
+              type: string
+              format: date-time
+    SteamPatchNote:
+      type: object
+      required: [game_id, text_content, update_version, published_at]
+      properties:
+        game_id:
+          type: integer
+          format: int64
+        text_content:
+          type: string
+        link:
+          type: string
+          format: uri
+        title:
+          type: string
+        update_version:
+          type: string
+        published_at:
+          type: string
+          format: date-time
