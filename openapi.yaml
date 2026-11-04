@@ -2,6 +2,9 @@ openapi: 3.1.0
 info:
   title: Patch Notes API
   version: 1.0.0
+  license:
+    name: Unlicensed
+    identifier: NOASSERTION
   description: |
     API for retrieving Steam patch notes and sharing user-posted patch note
     summaries. All endpoints use the /v1 path prefix. Within v1, existing
@@ -10,11 +13,16 @@ info:
 servers:
   - url: https://se480-aidan-service.onrender.com
     description: Production server
+security: []
 tags:
   - name: Users
+    description: User account operations.
   - name: Sessions
+    description: User session operations.
   - name: Patch note summaries
+    description: User-posted patch note summary operations.
   - name: Steam patch notes
+    description: Steam patch note retrieval operations.
 paths:
   /v1/users:
     get:
