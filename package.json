@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "scripts": {
+    "lint:openapi": "redocly lint openapi.yaml"
+  },
+  "devDependencies": {
+    "@redocly/cli": "^2.0.0"
+  }
+}

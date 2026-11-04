@@ -17,6 +17,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+      - run: npm ci
+      - run: npm run lint:openapi
       - run: npx --yes @redocly/cli lint openapi.yaml
   deployed-smoke:
     if: vars.APP_URL != ''
