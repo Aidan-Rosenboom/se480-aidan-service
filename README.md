@@ -1,4 +1,4 @@
-# se480-aidna-service
+# se480-aidan-service
 
 Deployed at: https://se480-aidan-service.onrender.com
 
