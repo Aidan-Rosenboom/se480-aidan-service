@@ -7,12 +7,20 @@ info:
     identifier: NOASSERTION
   description: |
     API for retrieving Steam patch notes and sharing user-posted patch note
-    summaries. All endpoints use the /v1 path prefix. Within v1, existing
-    paths, methods, request fields, response shapes, and status-code meanings
-    will not change incompatibly; additive fields and endpoints may be added.
+    summaries. The current API version is v1. Authentication is described for
+    a future version: user passwords are not currently set or verified, and
+    access tokens are not currently required by any operation. Within a
+    version, existing paths, methods, request fields, response shapes, and
+    status-code meanings will not change incompatibly; additive fields and
+    endpoints may be added.
 servers:
-  - url: https://se480-aidan-service.onrender.com
+  - url: https://se480-aidan-service.onrender.com/{version}
     description: Production server
+    variables:
+      version:
+        description: API major version.
+        default: v1
+        enum: [v1]
 security: []
 tags:
   - name: Users
@@ -24,10 +32,11 @@ tags:
   - name: Steam patch notes
     description: Steam patch note retrieval operations.
 paths:
-  /v1/users:
+  /users:
     get:
       tags: [Users]
       summary: List users
+      description: Return all users registered with the service.
       operationId: listUsers
       responses:
         '200':
@@ -42,7 +51,7 @@ paths:
                 - user_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
                   first_name: Aidan
                   last_name: Rosenboom
-                  steam_id: 76561198012345678
+                  steam_id: '76561198012345678'
         '400':
           $ref: '#/components/responses/ValidationError'
         '404':
@@ -52,6 +61,7 @@ paths:
     post:
       tags: [Users]
       summary: Create a user
+      description: Register a user and return the newly created user.
       operationId: createUser
       requestBody:
         required: true
@@ -62,10 +72,17 @@ paths:
             example:
               first_name: Aidan
               last_name: Rosenboom
-              steam_id: 76561198012345678
+              steam_id: '76561198012345678'
       responses:
         '201':
           description: User created successfully.
+          headers:
+            Location:
+              description: URL of the newly created user.
+              schema:
+                type: string
+                format: uri
+              example: https://se480-aidan-service.onrender.com/v1/users/3fa85f64-5717-4562-b3fc-2c963f66afa6
           content:
             application/json:
               schema:
@@ -74,17 +91,18 @@ paths:
                 user_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
                 first_name: Aidan
                 last_name: Rosenboom
-                steam_id: 76561198012345678
+                steam_id: '76561198012345678'
         '400':
           $ref: '#/components/responses/ValidationError'
         '404':
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
-  /v1/users/{user_id}:
+  /users/{user_id}:
     get:
       tags: [Users]
       summary: Get one user
+      description: Return a user identified by their user ID.
       operationId: getUser
       parameters:
         - $ref: '#/components/parameters/UserId'
@@ -99,17 +117,21 @@ paths:
                 user_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
                 first_name: Aidan
                 last_name: Rosenboom
-                steam_id: 76561198012345678
+                steam_id: '76561198012345678'
         '400':
           $ref: '#/components/responses/ValidationError'
         '404':
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
-  /v1/sessions:
+  /sessions:
     post:
       tags: [Sessions]
       summary: Authenticate a user and create a session
+      description: |
+        Create a session using the planned authentication contract. Passwords
+        are not currently set or verified, and the returned access token is not
+        required by any current operation.
       operationId: createSession
       requestBody:
         required: true
@@ -118,7 +140,7 @@ paths:
             schema:
               $ref: '#/components/schemas/SessionInput'
             example:
-              steam_id: 76561198012345678
+              steam_id: '76561198012345678'
               password: example-password
       responses:
         '201':
@@ -138,10 +160,11 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
-  /v1/patch-note-summaries:
+  /patch-note-summaries:
     get:
       tags: [Patch note summaries]
       summary: List patch note summaries for a game
+      description: Return user-posted patch note summaries for a game.
       operationId: listPatchNoteSummaries
       parameters:
         - $ref: '#/components/parameters/GameIdQuery'
@@ -156,7 +179,7 @@ paths:
                   $ref: '#/components/schemas/PatchNoteSummary'
               example:
                 - summary_id: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
-                  game_id: 10
+                  game_id: '10'
                   text_content: Added a new map and balance changes to ranked play.
                   link: https://example.com/summary
                   title: Season update
@@ -171,6 +194,7 @@ paths:
     post:
       tags: [Patch note summaries]
       summary: Create a user-posted patch note summary
+      description: Create and return a user-posted patch note summary.
       operationId: createPatchNoteSummary
       requestBody:
         required: true
@@ -179,7 +203,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchNoteSummaryInput'
             example:
-              game_id: 10
+              game_id: '10'
               text_content: Added a new map and balance changes to ranked play.
               link: https://example.com/summary
               title: Season update
@@ -187,13 +211,20 @@ paths:
       responses:
         '201':
           description: Patch note summary created successfully.
+          headers:
+            Location:
+              description: URL of the newly created patch note summary.
+              schema:
+                type: string
+                format: uri
+              example: https://se480-aidan-service.onrender.com/v1/patch-note-summaries/6ba7b810-9dad-11d1-80b4-00c04fd430c8
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/PatchNoteSummary'
               example:
                 summary_id: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
-                game_id: 10
+                game_id: '10'
                 text_content: Added a new map and balance changes to ranked play.
                 link: https://example.com/summary
                 title: Season update
@@ -205,10 +236,11 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
-  /v1/patch-note-summaries/{summary_id}:
+  /patch-note-summaries/{summary_id}:
     get:
       tags: [Patch note summaries]
       summary: Get one patch note summary for a game
+      description: Return a patch note summary identified by its summary ID.
       operationId: getPatchNoteSummary
       parameters:
         - $ref: '#/components/parameters/SummaryId'
@@ -222,7 +254,7 @@ paths:
                 $ref: '#/components/schemas/PatchNoteSummary'
               example:
                 summary_id: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
-                game_id: 10
+                game_id: '10'
                 text_content: Added a new map and balance changes to ranked play.
                 link: https://example.com/summary
                 title: Season update
@@ -237,6 +269,7 @@ paths:
     delete:
       tags: [Patch note summaries]
       summary: Delete one patch note summary
+      description: Permanently delete a user-posted patch note summary.
       operationId: deletePatchNoteSummary
       parameters:
         - $ref: '#/components/parameters/SummaryId'
@@ -249,10 +282,11 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
-  /v1/steam-patch-notes:
+  /steam-patch-notes:
     get:
       tags: [Steam patch notes]
       summary: Fetch patch notes for a game from Steam's API
+      description: Return patch notes retrieved from Steam for a game.
       operationId: getSteamPatchNotes
       parameters:
         - $ref: '#/components/parameters/GameIdQuery'
@@ -266,7 +300,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/SteamPatchNote'
               example:
-                - game_id: 10
+                - game_id: '10'
                   text_content: Improved matchmaking and fixed crash issues.
                   link: https://store.steampowered.com/news/app/10
                   title: Maintenance update
@@ -304,10 +338,9 @@ components:
       required: true
       description: Steam application identifier used to select one game.
       schema:
-        type: integer
-        format: int64
+        type: string
         minimum: 1
-      example: 10
+      example: '10'
   responses:
     ValidationError:
       description: The request is missing or contains invalid data.
@@ -375,107 +408,136 @@ components:
           example: /v1/patch-note-summaries
     User:
       type: object
+      description: A registered user account.
       required: [user_id, first_name, last_name, steam_id]
       properties:
         user_id:
           type: string
           format: uuid
+          description: Unique identifier assigned to the user.
         first_name:
           type: string
+          description: User's first name.
           example: Aidan
         last_name:
           type: string
+          description: User's last name.
           example: Rosenboom
         steam_id:
-          type: integer
-          format: int64
-          example: 76561198012345678
+          type: string
+          description: Steam identifier associated with the user.
+          example: '76561198012345678'
     UserInput:
       type: object
+      description: Fields required to register a user.
       required: [first_name, last_name, steam_id]
       properties:
         first_name:
           type: string
+          description: User's first name.
         last_name:
           type: string
+          description: User's last name.
         steam_id:
-          type: integer
-          format: int64
-          minimum: 1
+          type: string
+          description: Steam identifier associated with the user.
+          example: '76561198012345678'
     SessionInput:
       type: object
+      description: Credentials used by the planned session authentication flow.
       required: [steam_id, password]
       properties:
         steam_id:
-          type: integer
-          format: int64
-          minimum: 1
+          type: string
+          description: Steam identifier of the user attempting to authenticate.
+          example: '76561198012345678'
         password:
           type: string
           format: password
           minLength: 1
+          description: Password placeholder for the future authentication flow.
     Session:
       type: object
+      description: Session credentials returned by the planned authentication flow.
       required: [session_id, user_id, access_token, expires_at]
       properties:
         session_id:
           type: string
           format: uuid
+          description: Unique identifier assigned to the session.
         user_id:
           type: string
           format: uuid
+          description: Identifier of the authenticated user.
         access_token:
           type: string
+          description: Token reserved for future authenticated operations.
         expires_at:
           type: string
           format: date-time
+          description: Time at which the session expires.
     PatchNoteSummaryInput:
       type: object
+      description: Fields supplied when posting a patch note summary.
       required: [game_id, text_content, update_version]
       properties:
         game_id:
-          type: integer
-          format: int64
-          minimum: 1
+          type: string
+          description: Steam application identifier for the game.
+          example: '123123'
         text_content:
           type: string
           minLength: 1
+          description: User-written summary of the patch note.
         link:
           type: string
           format: uri
+          description: Optional URL with additional information about the summary.
         title:
           type: string
+          description: Optional title for the summary.
         update_version:
           type: string
           minLength: 1
+          description: Version identifier of the game update.
     PatchNoteSummary:
       allOf:
         - $ref: '#/components/schemas/PatchNoteSummaryInput'
         - type: object
+          description: A user-posted patch note summary returned by the service.
           required: [summary_id, created_at]
           properties:
             summary_id:
               type: string
               format: uuid
+              description: Unique identifier assigned to the summary.
             created_at:
               type: string
               format: date-time
+              description: Time at which the summary was created.
     SteamPatchNote:
       type: object
+      description: A patch note retrieved from Steam.
       required: [game_id, text_content, update_version, published_at]
       properties:
         game_id:
-          type: integer
-          format: int64
+          type: string
+          description: Steam application identifier for the game.
+          example: '123123'
         text_content:
           type: string
+          description: Patch note content retrieved from Steam.
         link:
           type: string
           format: uri
+          description: URL of the patch note on Steam.
         title:
           type: string
+          description: Optional title of the patch note.
         update_version:
           type: string
+          description: Version identifier of the game update.
         published_at:
           type: string
           format: date-time
+          description: Time at which Steam published the patch note.
