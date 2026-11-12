@@ -10,7 +10,7 @@ Allows users to request Patch notes information from different sources and shoul
 
 Primary Users: Gamers and people who want to know more about their favorite games recent updates.
 
-Forgotton Users: Users who requests notes for a game an gets a differnt games patch notes or a previous patch note version.
+Forgotton Users: Users who requests notes for a game and gets a different games patch notes or a previous patch note version.
 
 ## Resources
 

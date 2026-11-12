@@ -83,4 +83,6 @@ I did not end up changing much in my swagger documentation, the screen reader pe
   - Edited openapi.yaml to remove v2 session / auth endpoints.
 
 # AI tools used
-Copilot Fusion from GHCP (GitHub Copilot) to help with scaffolding of the different sections
+Copilot Fusion from GHCP (GitHub Copilot) to help with scaffolding of the routers, models, and errors. I then went in to these files myself and tweaked the design to my liking.
+
+Copilot also helped a lot with the writing of the test contract and the unit tests. I reviewed all of the tests written and made sure they were up to my standards before submitting.
