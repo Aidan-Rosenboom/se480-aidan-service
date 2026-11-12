@@ -1,0 +1,9 @@
+# Settings Schemathesis reads on its own when the contract test runs (Lab 3 task 6).
+# Keep this file at the repository root, next to openapi.yaml.
+
+[checks.positive_data_acceptance]
+# Schemathesis treats a request whose body matches the schema as valid data and
+# expects the service to accept it. A body can match the schema and still break a
+# rule the schema cannot express (ends_at before starts_at, a start in the past),
+# and the spec promises 400 for those. 422 is listed for specs that chose it.
+expected-statuses = ["2xx", "400", "404", "409", "422"]

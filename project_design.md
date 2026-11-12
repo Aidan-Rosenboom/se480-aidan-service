@@ -24,7 +24,7 @@ Forgotton Users: Users who requests notes for a game an gets a differnt games pa
 | Method | Path | Purpose | Success status |
 |---|---|---|---|
 | GET | `/v1/users` | List users | 200 OK |
-| POST | `/v1/users` | Create a user | 201 Created |
+| POST | `/v1/register_user` | Create a user | 201 Created |
 | GET | `/v1/users/{user_id}` | Get one user | 200 OK |
 | POST | `/v1/sessions` | Authenticate a user and create a session | 201 Created | // Wait on the authentication for version 2
 | GET | `/v1/patch-note-summaries?game_id={game_id}` | List patch note summaries for a game | 200 OK |

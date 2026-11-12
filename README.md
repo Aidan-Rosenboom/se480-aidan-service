@@ -7,9 +7,18 @@ Open the repository in the configured dev container, then:
 
     uvicorn app.main:app --reload --port 8000
 
+Run the sample client against the local service or the deployed service:
+
+    python client/example.py http://127.0.0.1:8000
+    python client/example.py https://se480-aidan-service.onrender.com
+
+The client lists users, creates an example user, and repeats the creation to
+demonstrate the API's conflict response. A sleeping deployed service may take
+a moment to wake up.
+
 ## Test it
 
-    pytest -q
+  python -m pytest -q
 
 ## Run the mock server
 
@@ -60,3 +69,18 @@ I did this all myself with help from google and gitlab docs
 
 ## AI tools used
 Used a bit of google AI and Chat GPT to solve my smoke.sh LF line sequence that caused the smoke test for the deployment to fail, otherwise I stuck to the github docs and the lab handout.
+
+# Lab 3 swagger docs
+I did not end up changing much in my swagger documentation, the screen reader performed well reading the documentation and I could follow along nicely.
+
+# Changes Applied Lab 3
+  - Added Models for most of my endpoints (except auth which I decided would be better for v2)
+  - Added error handling with human readable descriptions
+  - Added rules for unique users and unique summaries
+  - Added the routes to my endpoints in the users, patch_notes_summaries and steam_patch_notes router files
+  - Configured my store for some basic patch note / patch note summary storage 
+  - Addded scheathesis.tomland MakeFile
+  - Edited openapi.yaml to remove v2 session / auth endpoints.
+
+# AI tools used
+Copilot Fusion from GHCP (GitHub Copilot) to help with scaffolding of the different sections

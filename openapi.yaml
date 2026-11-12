@@ -25,8 +25,6 @@ security: []
 tags:
   - name: Users
     description: User account operations.
-  - name: Sessions
-    description: User session operations.
   - name: Patch note summaries
     description: User-posted patch note summary operations.
   - name: Steam patch notes
@@ -58,6 +56,8 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     post:
       tags: [Users]
       summary: Create a user
@@ -68,7 +68,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserInput'
+              $ref: '#/components/schemas/RegisterUser'
             example:
               first_name: Aidan
               last_name: Rosenboom
@@ -88,7 +88,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/User'
               example:
-                user_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
                 first_name: Aidan
                 last_name: Rosenboom
                 steam_id: '76561198012345678'
@@ -98,6 +97,8 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /users/{user_id}:
     get:
       tags: [Users]
@@ -124,42 +125,8 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
-  /sessions:
-    post:
-      tags: [Sessions]
-      summary: Authenticate a user and create a session
-      description: |
-        Create a session using the planned authentication contract. Passwords
-        are not currently set or verified, and the returned access token is not
-        required by any current operation.
-      operationId: createSession
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SessionInput'
-            example:
-              steam_id: '76561198012345678'
-              password: example-password
-      responses:
-        '201':
-          description: Session created successfully.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Session'
-              example:
-                session_id: 8f14e45f-ea67-4b2f-9f4d-6a1e2d3c4b5a
-                user_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
-                access_token: eyJhbGciOiJIUzI1NiJ9.example
-                expires_at: '2026-11-05T05:03:28Z'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-        '409':
-          $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /patch-note-summaries:
     get:
       tags: [Patch note summaries]
@@ -178,7 +145,8 @@ paths:
                 items:
                   $ref: '#/components/schemas/PatchNoteSummary'
               example:
-                - summary_id: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
+                - user_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                  summary_id: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
                   game_id: '10'
                   text_content: Added a new map and balance changes to ranked play.
                   link: https://example.com/summary
@@ -191,6 +159,8 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     post:
       tags: [Patch note summaries]
       summary: Create a user-posted patch note summary
@@ -203,6 +173,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchNoteSummaryInput'
             example:
+              user_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
               game_id: '10'
               text_content: Added a new map and balance changes to ranked play.
               link: https://example.com/summary
@@ -224,6 +195,7 @@ paths:
                 $ref: '#/components/schemas/PatchNoteSummary'
               example:
                 summary_id: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
+                user_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
                 game_id: '10'
                 text_content: Added a new map and balance changes to ranked play.
                 link: https://example.com/summary
@@ -236,6 +208,8 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /patch-note-summaries/{summary_id}:
     get:
       tags: [Patch note summaries]
@@ -253,6 +227,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/PatchNoteSummary'
               example:
+                user_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
                 summary_id: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
                 game_id: '10'
                 text_content: Added a new map and balance changes to ranked play.
@@ -266,6 +241,8 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     delete:
       tags: [Patch note summaries]
       summary: Delete one patch note summary
@@ -282,6 +259,8 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /steam-patch-notes:
     get:
       tags: [Steam patch notes]
@@ -312,6 +291,14 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '409':
           $ref: '#/components/responses/ConflictError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailableError'
 components:
   parameters:
     UserId:
@@ -378,6 +365,54 @@ components:
             status: 409
             detail: A resource with the supplied unique value already exists.
             instance: /v1/users
+    UnauthorizedError:
+      description: Authentication is required or the supplied credentials are invalid.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: https://api.example.com/problems/unauthorized
+            title: Unauthorized
+            status: 401
+            detail: Authentication is required or the supplied credentials are invalid.
+            instance: /v1/sessions
+    ForbiddenError:
+      description: The authenticated client is not permitted to perform the operation.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: https://api.example.com/problems/forbidden
+            title: Forbidden
+            status: 403
+            detail: The authenticated client is not permitted to perform the operation.
+            instance: /v1/steam-patch-notes
+    InternalServerError:
+      description: An unexpected server-side failure occurred.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: https://api.example.com/problems/internal-server-error
+            title: Internal server error
+            status: 500
+            detail: An unexpected server error occurred.
+            instance: /v1/users
+    ServiceUnavailableError:
+      description: A required upstream service is unavailable.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: https://api.example.com/problems/service-unavailable
+            title: Service unavailable
+            status: 503
+            detail: Steam's API is temporarily unavailable.
+            instance: /v1/steam-patch-notes
   schemas:
     ProblemDetails:
       type: object
@@ -427,7 +462,7 @@ components:
           type: string
           description: Steam identifier associated with the user.
           example: '76561198012345678'
-    UserInput:
+    RegisterUser:
       type: object
       description: Fields required to register a user.
       required: [first_name, last_name, steam_id]
@@ -442,45 +477,15 @@ components:
           type: string
           description: Steam identifier associated with the user.
           example: '76561198012345678'
-    SessionInput:
-      type: object
-      description: Credentials used by the planned session authentication flow.
-      required: [steam_id, password]
-      properties:
-        steam_id:
-          type: string
-          description: Steam identifier of the user attempting to authenticate.
-          example: '76561198012345678'
-        password:
-          type: string
-          format: password
-          minLength: 1
-          description: Password placeholder for the future authentication flow.
-    Session:
-      type: object
-      description: Session credentials returned by the planned authentication flow.
-      required: [session_id, user_id, access_token, expires_at]
-      properties:
-        session_id:
-          type: string
-          format: uuid
-          description: Unique identifier assigned to the session.
-        user_id:
-          type: string
-          format: uuid
-          description: Identifier of the authenticated user.
-        access_token:
-          type: string
-          description: Token reserved for future authenticated operations.
-        expires_at:
-          type: string
-          format: date-time
-          description: Time at which the session expires.
     PatchNoteSummaryInput:
       type: object
       description: Fields supplied when posting a patch note summary.
-      required: [game_id, text_content, update_version]
+      required: [user_id, game_id, text_content, update_version]
       properties:
+        user_id:
+          type: string
+          format: uuid
+          description: Identifier of the user posting the summary.
         game_id:
           type: string
           description: Steam application identifier for the game.
