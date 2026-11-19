@@ -12,8 +12,6 @@ lint:
 mock:
 	npx --yes @stoplight/prism-cli mock openapi.yaml
 
-test:
-	python -m pytest -q
 
 # Lab 4: the three checks, and the one command that runs them all.
 

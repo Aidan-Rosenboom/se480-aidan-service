@@ -2,6 +2,20 @@
 
 Deployed at: https://se480-aidan-service.onrender.com
 
+## Check it
+
+make check
+
+Runs the three lab four checks, this includes ruff checks, the coverage maps, and a requirements.txt audit.
+
+other commands that can be run
+
+make coverage: Just the coverage tests
+
+make audit: just the dependency audit
+
+A clean run means that make check or all of these checks passed without issues, the coverage map was above 85%, ruff passes, and dependencies aren't depricated
+
 ## Run it
 Open the repository in the configured dev container, then:
 
@@ -86,3 +100,49 @@ I did not end up changing much in my swagger documentation, the screen reader pe
 Copilot Fusion from GHCP (GitHub Copilot) to help with scaffolding of the routers, models, and errors. I then went in to these files myself and tweaked the design to my liking.
 
 Copilot also helped a lot with the writing of the test contract and the unit tests. I reviewed all of the tests written and made sure they were up to my standards before submitting.
+# Lab 4 validation hardening
+Shape is validated in [app/models.py](./app/models.py) and rules in
+[app/rules.py](./app/rules.py), nowhere else. Each constraint in
+[openapi.yaml](./openapi.yaml) is a shared component schema (`GameId`,
+`SteamId`, `PersonName`, `SummaryText`, `SummaryTitle`, `UpdateVersion`,
+`HttpLink`) with one matching annotated type in `models.py`. Every model field
+and route parameter carrying that value uses the type.
+[tests/test_validation.py](./tests/test_validation.py) has one case per
+constraint.
+
+Spec corrections (the spec was wrong, not the code):
+  - `game_id` query parameter: `minimum: 1` does nothing on a string, so any
+    string, `""` and `null` included, passed. It is now `GameId`, a positive
+    integer written as a string (`^[1-9][0-9]{0,9}$`), which the 400 example
+    already promised.
+  - The `createUser` 201 example left out the required `user_id`.
+  - Request bodies (`RegisterUser`, `PatchNoteSummaryInput`) now say
+    `additionalProperties: false`, and the models use `extra="forbid"`. Before
+    this, a client could send `created_at` or `summary_id` and have it silently
+    dropped.
+  - `PatchNoteSummary` no longer `allOf`s the input schema, because the
+    input's `additionalProperties: false` would then reject the response's
+    `summary_id`. Both list their properties and share the component schemas.
+  - `link` and `title` are optional but not nullable: leaving one out is
+    fine, sending `null` is a 400.
+
+Rules the schema cannot express (this project has no start/end pair; these
+are its cross-field and cross-record rules):
+  - a Steam account registers once (409);
+  - a summary's `user_id` must name a registered user (404);
+  - one summary per user, game, and update version (409);
+  - a summary is found only under the `game_id` it was posted for (404).
+
+The user-exists and game-match checks used to be written inline in the router.
+They moved to `rules.py`, so each rule is checked in one place.
+
+Running Schemathesis against the Lab 3 code with the hardened spec found 7
+failures (for example `steam_id: ""` accepted and `game_id=null` accepted).
+Against this code, 1883 generated cases pass.
+
+# Lab 4 changes applied
+
+changes to my openapi.yaml, tests, errors.py, rules.py, most py files in the app directory, and the lab required files. My first review exposed that I needed to solidify my variables in my openapi.yaml file which lead me to modify my errors.py, rules.py, and most of the files in the app directory.
+
+# Lab 4 AI usage
+I used claude opus 5.5 to help me learn more about the Validation Hardening section, write some tests, and clean up my repository overall while prioritizing learning from what it found and what it was doing.

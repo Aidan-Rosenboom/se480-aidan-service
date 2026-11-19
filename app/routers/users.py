@@ -1,12 +1,12 @@
 """User endpoints."""
 
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from fastapi import APIRouter, Request, Response
 
 from app import rules, store
 from app.errors import ConflictError, NotFoundError, ProblemDetails
-from app.models import User, UserInput
+from app.models import User, UserInput, Uuid
 
 router = APIRouter()
 ERROR_RESPONSES = {
@@ -70,7 +70,7 @@ def create_user(
     response_model_exclude_none=True,
     responses=ERROR_RESPONSES,
 )
-def get_user(user_id: UUID) -> User:
+def get_user(user_id: Uuid) -> User:
     try:
         return store.users[user_id]
     except KeyError as exc:

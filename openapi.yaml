@@ -88,6 +88,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/User'
               example:
+                user_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
                 first_name: Aidan
                 last_name: Rosenboom
                 steam_id: '76561198012345678'
@@ -325,8 +326,7 @@ components:
       required: true
       description: Steam application identifier used to select one game.
       schema:
-        type: string
-        minimum: 1
+        $ref: '#/components/schemas/GameId'
       example: '10'
   responses:
     ValidationError:
@@ -441,6 +441,51 @@ components:
           format: uri-reference
           description: URI reference identifying the request or occurrence.
           example: /v1/patch-note-summaries
+    GameId:
+      type: string
+      description: Steam application identifier, a positive integer written as a string.
+      pattern: '^[1-9][0-9]{0,9}$'
+      example: '10'
+    SteamId:
+      type: string
+      description: 17-digit SteamID64 of the user's Steam account.
+      pattern: '^[0-9]{17}$'
+      example: '76561198012345678'
+    PersonName:
+      type: string
+      description: A name of 1 to 100 characters, not only whitespace.
+      minLength: 1
+      maxLength: 100
+      pattern: '\S'
+      example: Aidan
+    SummaryText:
+      type: string
+      description: Summary text of 1 to 10000 characters, not only whitespace.
+      minLength: 1
+      maxLength: 10000
+      pattern: '\S'
+    SummaryTitle:
+      type: string
+      description: Title of 1 to 200 characters, not only whitespace.
+      minLength: 1
+      maxLength: 200
+      pattern: '\S'
+    UpdateVersion:
+      type: string
+      description: >-
+        Version identifier of a game update: 1 to 50 letters, digits, dots,
+        underscores, plus signs, or hyphens, starting with a letter or digit.
+      minLength: 1
+      maxLength: 50
+      pattern: '^[A-Za-z0-9][A-Za-z0-9._+-]*$'
+      example: '1.4.0'
+    HttpLink:
+      type: string
+      format: uri
+      description: An absolute http or https URL of at most 2048 characters.
+      maxLength: 2048
+      pattern: '^https?://'
+      example: https://example.com/summary
     User:
       type: object
       description: A registered user account.
@@ -451,90 +496,101 @@ components:
           format: uuid
           description: Unique identifier assigned to the user.
         first_name:
-          type: string
+          $ref: '#/components/schemas/PersonName'
           description: User's first name.
-          example: Aidan
         last_name:
-          type: string
+          $ref: '#/components/schemas/PersonName'
           description: User's last name.
-          example: Rosenboom
         steam_id:
-          type: string
+          $ref: '#/components/schemas/SteamId'
           description: Steam identifier associated with the user.
-          example: '76561198012345678'
     RegisterUser:
       type: object
-      description: Fields required to register a user.
+      description: Fields required to register a user. Unknown fields are rejected.
       required: [first_name, last_name, steam_id]
+      additionalProperties: false
       properties:
         first_name:
-          type: string
+          $ref: '#/components/schemas/PersonName'
           description: User's first name.
         last_name:
-          type: string
+          $ref: '#/components/schemas/PersonName'
           description: User's last name.
         steam_id:
-          type: string
+          $ref: '#/components/schemas/SteamId'
           description: Steam identifier associated with the user.
-          example: '76561198012345678'
     PatchNoteSummaryInput:
       type: object
-      description: Fields supplied when posting a patch note summary.
+      description: >-
+        Fields supplied when posting a patch note summary. Unknown fields,
+        including the server-assigned summary_id and created_at, are rejected.
       required: [user_id, game_id, text_content, update_version]
+      additionalProperties: false
       properties:
         user_id:
           type: string
           format: uuid
           description: Identifier of the user posting the summary.
         game_id:
-          type: string
+          $ref: '#/components/schemas/GameId'
           description: Steam application identifier for the game.
-          example: '123123'
         text_content:
-          type: string
-          minLength: 1
+          $ref: '#/components/schemas/SummaryText'
           description: User-written summary of the patch note.
         link:
-          type: string
-          format: uri
+          $ref: '#/components/schemas/HttpLink'
           description: Optional URL with additional information about the summary.
         title:
-          type: string
+          $ref: '#/components/schemas/SummaryTitle'
           description: Optional title for the summary.
         update_version:
-          type: string
-          minLength: 1
+          $ref: '#/components/schemas/UpdateVersion'
           description: Version identifier of the game update.
     PatchNoteSummary:
-      allOf:
-        - $ref: '#/components/schemas/PatchNoteSummaryInput'
-        - type: object
-          description: A user-posted patch note summary returned by the service.
-          required: [summary_id, created_at]
-          properties:
-            summary_id:
-              type: string
-              format: uuid
-              description: Unique identifier assigned to the summary.
-            created_at:
-              type: string
-              format: date-time
-              description: Time at which the summary was created.
+      type: object
+      description: A user-posted patch note summary returned by the service.
+      required: [summary_id, user_id, game_id, text_content, update_version, created_at]
+      properties:
+        summary_id:
+          type: string
+          format: uuid
+          description: Unique identifier assigned to the summary.
+        user_id:
+          type: string
+          format: uuid
+          description: Identifier of the user who posted the summary.
+        game_id:
+          $ref: '#/components/schemas/GameId'
+          description: Steam application identifier for the game.
+        text_content:
+          $ref: '#/components/schemas/SummaryText'
+          description: User-written summary of the patch note.
+        link:
+          $ref: '#/components/schemas/HttpLink'
+          description: Optional URL with additional information about the summary.
+        title:
+          $ref: '#/components/schemas/SummaryTitle'
+          description: Optional title for the summary.
+        update_version:
+          $ref: '#/components/schemas/UpdateVersion'
+          description: Version identifier of the game update.
+        created_at:
+          type: string
+          format: date-time
+          description: Time at which the summary was created, with a UTC offset.
     SteamPatchNote:
       type: object
       description: A patch note retrieved from Steam.
       required: [game_id, text_content, update_version, published_at]
       properties:
         game_id:
-          type: string
+          $ref: '#/components/schemas/GameId'
           description: Steam application identifier for the game.
-          example: '123123'
         text_content:
           type: string
           description: Patch note content retrieved from Steam.
         link:
-          type: string
-          format: uri
+          $ref: '#/components/schemas/HttpLink'
           description: URL of the patch note on Steam.
         title:
           type: string
@@ -545,4 +601,4 @@ components:
         published_at:
           type: string
           format: date-time
-          description: Time at which Steam published the patch note.
+          description: Time at which Steam published the patch note, with a UTC offset.

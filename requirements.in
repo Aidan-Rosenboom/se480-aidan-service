@@ -15,6 +15,7 @@ httpx>=0.28,<1        # FastAPI TestClient
 httpx2>=2.16,<3       # sample client
 pyyaml>=6,<7
 schemathesis>=4,<5
+jsonschema-rs>=0.61,<1  # ProblemDetails check in tests/problems.py
 
 # Lab 4 checks
 ruff>=0.8,<1

@@ -1,5 +1,7 @@
 from uuid import UUID
 
+from problems import assert_problem
+
 USER = {
     "first_name": "Aidan",
     "last_name": "Rosenboom",
@@ -98,7 +100,7 @@ def test_create_summary_validation_error(client):
     )
 
     body = response.json()
-    assert response.status_code == 400
+    assert_problem(response, 400)
     assert body["status"] == 400
     assert body["type"].endswith("/validation-error")
     assert body["errors"]
@@ -116,31 +118,29 @@ def test_create_summary_not_found_error(client):
     )
 
     body = response.json()
-    assert response.status_code == 404
+    assert_problem(response, 404)
     assert body["status"] == 404
     assert body["type"].endswith("/not-found")
 
 
 def test_get_summary_not_found_error(client):
     response = client.get(
-        "/v1/patch-note-summaries/"
-        "00000000-0000-0000-0000-000000000000?game_id=10",
+        "/v1/patch-note-summaries/00000000-0000-0000-0000-000000000000?game_id=10",
     )
 
     body = response.json()
-    assert response.status_code == 404
+    assert_problem(response, 404)
     assert body["status"] == 404
     assert body["type"].endswith("/not-found")
 
 
 def test_delete_summary_not_found_error(client):
     response = client.delete(
-        "/v1/patch-note-summaries/"
-        "00000000-0000-0000-0000-000000000000",
+        "/v1/patch-note-summaries/00000000-0000-0000-0000-000000000000",
     )
 
     body = response.json()
-    assert response.status_code == 404
+    assert_problem(response, 404)
     assert body["status"] == 404
     assert body["type"].endswith("/not-found")
 
@@ -160,7 +160,7 @@ def test_create_summary_conflict_error(client):
     )
 
     body = response.json()
-    assert response.status_code == 409
+    assert_problem(response, 409)
     assert body["status"] == 409
     assert body["type"].endswith("/conflict")
     assert body["conflicts_with"] == {

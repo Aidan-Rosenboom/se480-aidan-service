@@ -1,13 +1,14 @@
 """User-posted patch note summary endpoints."""
 
-from uuid import UUID, uuid4
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Annotated
+from uuid import uuid4
 
 from fastapi import APIRouter, Query, Request, Response
 
 from app import rules, store
 from app.errors import ConflictError, NotFoundError, ProblemDetails
-from app.models import PatchNoteSummary, PatchNoteSummaryInput
+from app.models import GameId, PatchNoteSummary, PatchNoteSummaryInput, Uuid
 
 router = APIRouter()
 ERROR_RESPONSES = {
@@ -27,13 +28,9 @@ ERROR_RESPONSES = {
     responses=ERROR_RESPONSES,
 )
 def list_patch_note_summaries(
-    game_id: str = Query(..., min_length=1),
+    game_id: Annotated[GameId, Query()],
 ) -> list[PatchNoteSummary]:
-    return [
-        summary
-        for summary in store.summaries.values()
-        if summary.game_id == game_id
-    ]
+    return [summary for summary in store.summaries.values() if summary.game_id == game_id]
 
 
 @router.post(
@@ -50,8 +47,10 @@ def create_patch_note_summary(
     request: Request,
     response: Response,
 ) -> PatchNoteSummary:
-    if payload.user_id not in store.users:
-        raise NotFoundError("No user matched the supplied user_id.")
+    try:
+        rules.ensure_user_exists(store.users, user_id=payload.user_id)
+    except LookupError as exc:
+        raise NotFoundError(str(exc)) from exc
     try:
         rules.ensure_summary_is_unique(
             store.summaries.values(),
@@ -71,8 +70,8 @@ def create_patch_note_summary(
 
     summary = PatchNoteSummary(
         summary_id=uuid4(),
-        created_at=datetime.now(timezone.utc),
-        **payload.model_dump(),
+        created_at=datetime.now(UTC),
+        **payload.model_dump(exclude_unset=True),
     )
     store.summaries[summary.summary_id] = summary
     response.headers["Location"] = str(
@@ -93,13 +92,17 @@ def create_patch_note_summary(
     responses=ERROR_RESPONSES,
 )
 def get_patch_note_summary(
-    summary_id: UUID,
-    game_id: str = Query(..., min_length=1),
+    summary_id: Uuid,
+    game_id: Annotated[GameId, Query()],
 ) -> PatchNoteSummary:
-    summary = store.summaries.get(summary_id)
-    if summary is None or summary.game_id != game_id:
-        raise NotFoundError("No patch note summary matched the supplied identifier.")
-    return summary
+    try:
+        return rules.find_summary_for_game(
+            store.summaries,
+            summary_id=summary_id,
+            game_id=game_id,
+        )
+    except LookupError as exc:
+        raise NotFoundError(str(exc)) from exc
 
 
 @router.delete(
@@ -110,7 +113,7 @@ def get_patch_note_summary(
     response_class=Response,
     responses=ERROR_RESPONSES,
 )
-def delete_patch_note_summary(summary_id: UUID) -> Response:
+def delete_patch_note_summary(summary_id: Uuid) -> Response:
     if summary_id not in store.summaries:
         raise NotFoundError("No patch note summary matched the supplied identifier.")
     del store.summaries[summary_id]
