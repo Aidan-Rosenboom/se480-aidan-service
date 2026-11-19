@@ -181,6 +181,13 @@ _MESSAGES = {
 
 def _allowed_methods(request: Request) -> str:
     """Return every method any route accepts at this path."""
+    """Every method any route accepts at this path.
+
+    Starlette's own Allow header names only the first route it tried; FastAPI
+    registers one route per operation, so a path with GET and POST would
+    advertise GET alone. RFC 9110 wants the full list on a 405, and so does the
+    contract test.
+    """
 
     methods: set[str] = set()
     for route in request.app.routes:
@@ -188,6 +195,13 @@ def _allowed_methods(request: Request) -> str:
         if match is not Match.NONE:
             methods |= getattr(route, "methods", None) or set()
     return ", ".join(sorted(methods))
+
+    # Friendlier wording for the validation messages callers see most. Anything
+    # else falls through to Pydantic's own message, which is accurate if terse.
+    _MESSAGES = {
+        "timezone_aware": "needs a time zone offset, for example 2026-11-02T14:00:00-06:00",
+        "missing": "is required",
+    }
 
 
 def install(app: FastAPI) -> None:
