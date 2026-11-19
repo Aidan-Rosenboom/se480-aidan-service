@@ -1,12 +1,13 @@
 """Steam patch-note retrieval endpoints."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Annotated
 from urllib.parse import quote
 
 from fastapi import APIRouter, Query
 
 from app.errors import ProblemDetails
-from app.models import SteamPatchNote
+from app.models import GameId, SteamPatchNote
 
 router = APIRouter()
 ERROR_RESPONSES = {
@@ -29,18 +30,15 @@ ERROR_RESPONSES = {
     responses=ERROR_RESPONSES,
 )
 def get_steam_patch_notes(
-    game_id: str = Query(..., min_length=1),
+    game_id: Annotated[GameId, Query()],
 ) -> list[SteamPatchNote]:
     return [
         SteamPatchNote(
             game_id=game_id,
             text_content="Improved matchmaking and fixed crash issues.",
-            link=(
-                "https://store.steampowered.com/news/app/"
-                f"{quote(game_id, safe='')}"
-            ),
+            link=(f"https://store.steampowered.com/news/app/{quote(game_id, safe='')}"),
             title="Maintenance update",
             update_version="2026.11.04",
-            published_at=datetime(2026, 11, 4, 3, 30, tzinfo=timezone.utc),
+            published_at=datetime(2026, 11, 4, 3, 30, tzinfo=UTC),
         ),
     ]

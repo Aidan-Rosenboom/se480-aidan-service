@@ -1,5 +1,7 @@
 """Application exceptions and RFC 9457 problem-details handlers."""
 
+import logging
+from http import HTTPStatus
 from typing import Any
 from urllib.parse import quote
 
@@ -8,7 +10,9 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.routing import Match
+from starlette.routing import Match, compile_path
+
+log = logging.getLogger("app")
 
 PROBLEM_BASE = "https://api.example.com/problems/"
 PROBLEM_MEDIA_TYPE = "application/problem+json"
@@ -176,17 +180,34 @@ def problem_response(request: Request, problem: Problem) -> JSONResponse:
 _MESSAGES = {
     "timezone_aware": "needs a time zone offset, for example 2026-11-02T14:00:00-06:00",
     "missing": "is required",
+    "extra_forbidden": "is not a field this request accepts",
 }
 
 
-def _allowed_methods(request: Request) -> str:
-    """Return every method any route accepts at this path."""
+_HTTP_METHODS = {"get", "put", "post", "delete", "options", "head", "patch", "trace"}
 
+
+def _allowed_methods(request: Request) -> str:
+    """Every method the API declares for this path, for the Allow header on a 405.
+
+    Starlette's own Allow header names only the first route it tried, and since
+    FastAPI 0.165 routes from include_router are wrapped (in a private class)
+    rather than copied into app.routes, so walking app.routes no longer finds
+    them. The OpenAPI document is public, cached by FastAPI, and is what the
+    contract test checks against openapi.yaml. Plain routes outside the schema
+    (/health) are still found by walking app.routes.
+    """
+
+    path = request.url.path
     methods: set[str] = set()
+    for template, path_item in request.app.openapi()["paths"].items():
+        regex, _, _ = compile_path(template)
+        if regex.match(path):
+            methods |= {method.upper() for method in path_item if method in _HTTP_METHODS}
     for route in request.app.routes:
-        match, _ = route.matches(request.scope)
-        if match is not Match.NONE:
-            methods |= getattr(route, "methods", None) or set()
+        route_methods = getattr(route, "methods", None)
+        if route_methods and route.matches(request.scope)[0] is not Match.NONE:
+            methods |= route_methods
     return ", ".join(sorted(methods))
 
 
@@ -203,9 +224,7 @@ def install(app: FastAPI) -> None:
         errors = []
         for err in exc.errors():
             loc = [
-                str(part)
-                for part in err.get("loc", [])
-                if part not in ("body", "query", "path")
+                str(part) for part in err.get("loc", []) if part not in ("body", "query", "path")
             ]
             errors.append(
                 {
@@ -238,7 +257,8 @@ def install(app: FastAPI) -> None:
                 str(exc.detail),
             )
             problem.status = exc.status_code
-            problem.title = "Request not allowed"
+            # RFC 9457: with type about:blank, the title is the HTTP status phrase.
+            problem.title = HTTPStatus(exc.status_code).phrase
             problem.problem_type = "about:blank"
 
         response = problem_response(request, problem)
@@ -246,3 +266,19 @@ def install(app: FastAPI) -> None:
         if exc.status_code == 405:
             response.headers["Allow"] = _allowed_methods(request)
         return response
+
+    @app.exception_handler(Exception)
+    async def handle_unexpected(request: Request, exc: Exception):
+        # The last resort: anything nobody anticipated. The caller gets the same
+        # shape as every other error and none of the internals; the traceback
+        # goes to the server log, which is where a person debugging it looks.
+        # Note for tests: TestClient re-raises server errors unless created with
+        # raise_server_exceptions=False.
+        log.exception("unhandled error on %s %s", request.method, request.url.path)
+        return problem_response(
+            request,
+            InternalServerError(
+                "The service could not complete the request. Try again; "
+                "if it keeps failing, report the time and the path."
+            ),
+        )

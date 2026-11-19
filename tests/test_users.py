@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from problems import assert_problem
 
 USER = {
     "first_name": "Aidan",
@@ -41,7 +42,7 @@ def test_create_user_validation_error(client):
     response = client.post("/v1/users", json={"first_name": "Aidan"})
 
     body = response.json()
-    assert response.status_code == 400
+    assert_problem(response, 400)
     assert body["status"] == 400
     assert body["type"].endswith("/validation-error")
     assert body["errors"]
@@ -51,7 +52,7 @@ def test_get_user_not_found_error(client):
     response = client.get("/v1/users/00000000-0000-0000-0000-000000000000")
 
     body = response.json()
-    assert response.status_code == 404
+    assert_problem(response, 404)
     assert body["status"] == 404
     assert body["type"].endswith("/not-found")
 
@@ -62,7 +63,7 @@ def test_create_user_conflict_error(client):
     response = client.post("/v1/users", json=USER)
 
     body = response.json()
-    assert response.status_code == 409
+    assert_problem(response, 409)
     assert body["status"] == 409
     assert body["type"].endswith("/conflict")
     assert body["conflicts_with"] == {"steam_id": USER["steam_id"]}

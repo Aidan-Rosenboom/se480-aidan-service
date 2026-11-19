@@ -1,8 +1,60 @@
-"""Pydantic models for the API request and response shapes."""
+"""Pydantic models for the API request and response shapes.
 
+Every constraint in openapi.yaml's component schemas is declared once here, as
+one of the annotated types below, and every model and route parameter that
+carries that value uses the type. Rules the schema cannot express live in
+app/rules.py.
+"""
+
+import re
+from typing import Annotated, Any
 from uuid import UUID
 
-from pydantic import AwareDatetime, AnyUrl, BaseModel, ConfigDict, Field
+from pydantic import (
+    AnyUrl,
+    AwareDatetime,
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    UrlConstraints,
+    field_validator,
+)
+
+# --- Shared value types (openapi.yaml: components/schemas) -------------------
+
+_UUID_TEXT = re.compile(
+    r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+)
+
+
+def _canonical_uuid(value: Any) -> Any:
+    # Pydantic also takes 32 bare hex digits, braces, or a urn: prefix;
+    # format: uuid takes only the hyphenated form.
+    if isinstance(value, str) and not _UUID_TEXT.fullmatch(value):
+        raise ValueError("must be a UUID such as 3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    return value
+
+
+Uuid = Annotated[UUID, BeforeValidator(_canonical_uuid)]
+
+GameId = Annotated[str, StringConstraints(pattern=r"^[1-9][0-9]{0,9}$")]
+SteamId = Annotated[str, StringConstraints(pattern=r"^[0-9]{17}$")]
+PersonName = Annotated[str, StringConstraints(min_length=1, max_length=100, pattern=r"\S")]
+SummaryText = Annotated[str, StringConstraints(min_length=1, max_length=10000, pattern=r"\S")]
+SummaryTitle = Annotated[str, StringConstraints(min_length=1, max_length=200, pattern=r"\S")]
+UpdateVersion = Annotated[
+    str,
+    StringConstraints(min_length=1, max_length=50, pattern=r"^[A-Za-z0-9][A-Za-z0-9._+-]*$"),
+]
+HttpLink = Annotated[
+    AnyUrl,
+    UrlConstraints(max_length=2048, allowed_schemes=["http", "https"]),
+]
+
+
+# --- Base models --------------------------------------------------------------
 
 
 class APIModel(BaseModel):
@@ -11,50 +63,36 @@ class APIModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class UserInput(APIModel):
-    """Fields required to register a user."""
+class InputModel(APIModel):
+    """A request body: the spec marks these additionalProperties: false."""
 
-    first_name: str = Field(
-        description="User's first name."
-    )
-    
-    last_name: str = Field(
-        description="User's last name."
-        )
-    
-    steam_id: str = Field(
-        description="Steam identifier associated with the user.",
-    )
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
 
 
+# --- Users --------------------------------------------------------------------
 
 
-class User(UserInput):
+class UserFields(APIModel):
+    first_name: PersonName = Field(description="User's first name.")
+    last_name: PersonName = Field(description="User's last name.")
+    steam_id: SteamId = Field(description="Steam identifier associated with the user.")
+
+
+class UserInput(UserFields, InputModel):
+    """Fields required to register a user (RegisterUser)."""
+
+
+class User(UserFields):
     """A registered user account."""
 
-    user_id: UUID = Field(
-        description="Unique identifier assigned to the user.",
-    )
-    
-    first_name: str = Field(
-        description="User's first name.",
-        alias="first_name"
-    )
+    user_id: Uuid = Field(description="Unique identifier assigned to the user.")
 
-    last_name: str = Field(
-        description="User's last name.",
-        alias="last_name"
-    )
-
-    steam_id: str = Field(
-        description="Steam identifier associated with the user.",
-    )
 
 # Will be implemented in a future API version.
-# class SessionInput(APIModel):
+# class SessionInput(InputModel):
 #     """Credentials used by the planned session authentication flow."""
 #
-#     steam_id: str = Field(
+#     steam_id: SteamId = Field(
 #         description="Steam identifier of the user attempting to authenticate.",
 #     )
 #     password: str = Field(
@@ -66,10 +104,10 @@ class User(UserInput):
 # class Session(APIModel):
 #     """Session credentials returned by the planned authentication flow."""
 #
-#     session_id: UUID = Field(
+#     session_id: Uuid = Field(
 #         description="Unique identifier assigned to the session.",
 #     )
-#     user_id: UUID = Field(
+#     user_id: Uuid = Field(
 #         description="Identifier of the authenticated user.",
 #     )
 #     access_token: str = Field(
@@ -80,103 +118,56 @@ class User(UserInput):
 #     )
 
 
+# --- Patch note summaries -----------------------------------------------------
 
-class PatchNoteSummaryInput(APIModel):
-    """Fields supplied when posting a patch note summary."""
-    
-    user_id: UUID = Field(
-        description="Identifier of the user posting the summary.",
-    )
 
-    game_id: str = Field(
-        description="Steam application identifier for the game.",
-    )
-
-    text_content: str = Field(
-        min_length=1,
-        description="User-written summary of the patch note.",
-    )
-
-    link: AnyUrl | None = Field(
+class PatchNoteSummaryFields(APIModel):
+    user_id: Uuid = Field(description="Identifier of the user posting the summary.")
+    game_id: GameId = Field(description="Steam application identifier for the game.")
+    text_content: SummaryText = Field(description="User-written summary of the patch note.")
+    link: HttpLink | None = Field(
         default=None,
         description="Optional URL with additional information about the summary.",
     )
-
-    title: str | None = Field(
+    title: SummaryTitle | None = Field(
         default=None,
         description="Optional title for the summary.",
     )
+    update_version: UpdateVersion = Field(description="Version identifier of the game update.")
 
-    update_version: str = Field(
-        min_length=1,
-        description="Version identifier of the game update.",
-    )
+    @field_validator("link", "title", mode="before")
+    @classmethod
+    def _optional_is_not_nullable(cls, value: Any) -> Any:
+        # The spec makes these optional (may be left out), not nullable
+        # (may be sent as null). Defaults are not validated, so leaving the
+        # field out still gives None.
+        if value is None:
+            raise ValueError("may be left out but not set to null")
+        return value
 
-class PatchNoteSummary(PatchNoteSummaryInput):
+
+class PatchNoteSummaryInput(PatchNoteSummaryFields, InputModel):
+    """Fields supplied when posting a patch note summary."""
+
+
+class PatchNoteSummary(PatchNoteSummaryFields):
     """A user-posted patch note summary."""
 
-    user_id: UUID = Field(
-        description="Identifier of the user posting the summary.",
-    )
+    summary_id: Uuid = Field(description="Unique identifier assigned to the summary.")
+    created_at: AwareDatetime = Field(description="Time at which the summary was created.")
 
-    summary_id: UUID = Field(
-        description="Unique identifier assigned to the summary.",
-    )
 
-    game_id: str = Field(
-        description="Steam application identifier for the game.",
-    )
-    
-    text_content: str = Field(
-        min_length=1,
-        description="User-written summary of the patch note.",
-    )
-
-    link: AnyUrl | None = Field(
-        default=None,
-        description="Optional URL with additional information about the summary.",
-    )
-
-    title: str | None = Field(
-        default=None,
-        description="Optional title for the summary.",
-    )
-
-    update_version: str = Field(
-        min_length=1,
-        description="Version identifier of the game update.",
-    )
-
-    created_at: AwareDatetime = Field(
-        description="Time at which the summary was created.",
-    )
+# --- Steam patch notes --------------------------------------------------------
 
 
 class SteamPatchNote(APIModel):
     """A patch note retrieved from Steam."""
 
-    game_id: str = Field(
-        description="Steam application identifier for the game.",
-    )
-
-    text_content: str = Field(
-        description="Patch note content retrieved from Steam.",
-    )
-
-    link: AnyUrl | None = Field(
-        default=None,
-        description="URL of the patch note on Steam.",
-    )
-
-    title: str | None = Field(
-        default=None,
-        description="Optional title of the patch note.",
-    )
-
-    update_version: str = Field(
-        description="Version identifier of the game update.",
-    )
-
+    game_id: GameId = Field(description="Steam application identifier for the game.")
+    text_content: str = Field(description="Patch note content retrieved from Steam.")
+    link: HttpLink | None = Field(default=None, description="URL of the patch note on Steam.")
+    title: str | None = Field(default=None, description="Optional title of the patch note.")
+    update_version: str = Field(description="Version identifier of the game update.")
     published_at: AwareDatetime = Field(
         description="Time at which Steam published the patch note.",
     )

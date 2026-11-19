@@ -8,7 +8,6 @@ from hypothesis import HealthCheck, settings
 
 from app.main import app
 
-
 SPEC_PATH = Path(__file__).parents[1] / "openapi.yaml"
 
 

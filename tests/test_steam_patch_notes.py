@@ -1,3 +1,6 @@
+from problems import assert_problem
+
+
 def test_get_steam_patch_notes_happy_path(client):
     response = client.get("/v1/steam-patch-notes?game_id=10")
 
@@ -15,7 +18,7 @@ def test_get_steam_patch_notes_validation_error(client):
     response = client.get("/v1/steam-patch-notes")
 
     body = response.json()
-    assert response.status_code == 400
+    assert_problem(response, 400)
     assert body["status"] == 400
     assert body["type"].endswith("/validation-error")
     assert body["errors"]
