@@ -1,12 +1,15 @@
 from pathlib import Path
 from urllib.parse import urlsplit
 
+import pytest
 import schemathesis
 import yaml
+from conftest import no_steam
 from fastapi.testclient import TestClient
 from hypothesis import HealthCheck, settings
 
 from app.main import app
+from app.routers.steam_patch_notes import get_steam_client
 
 SPEC_PATH = Path(__file__).parents[1] / "openapi.yaml"
 
@@ -24,6 +27,14 @@ BASE_PATH = _base_path()
 schema = schemathesis.openapi.from_path(str(SPEC_PATH))
 schema.app = app
 schema.config.update(base_url="http://testserver" + BASE_PATH)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _fake_steam():
+    # Schemathesis sends many generated game IDs: none of them go to real Steam.
+    app.dependency_overrides[get_steam_client] = no_steam
+    yield
+    app.dependency_overrides.clear()
 
 
 @schema.parametrize()

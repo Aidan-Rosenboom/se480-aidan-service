@@ -136,6 +136,7 @@ paths:
       operationId: listPatchNoteSummaries
       parameters:
         - $ref: '#/components/parameters/GameIdQuery'
+        - $ref: '#/components/parameters/PatchNoteIdQuery'
       responses:
         '200':
           description: Patch note summaries returned successfully.
@@ -153,6 +154,7 @@ paths:
                   link: https://example.com/summary
                   title: Season update
                   update_version: '1.4.0'
+                  patch_note_id: '685265994960078265'
                   created_at: '2026-11-04T04:00:00Z'
         '400':
           $ref: '#/components/responses/ValidationError'
@@ -180,6 +182,7 @@ paths:
               link: https://example.com/summary
               title: Season update
               update_version: '1.4.0'
+              patch_note_id: '685265994960078265'
       responses:
         '201':
           description: Patch note summary created successfully.
@@ -202,6 +205,7 @@ paths:
                 link: https://example.com/summary
                 title: Season update
                 update_version: '1.4.0'
+                patch_note_id: '685265994960078265'
                 created_at: '2026-11-04T04:00:00Z'
         '400':
           $ref: '#/components/responses/ValidationError'
@@ -235,6 +239,7 @@ paths:
                 link: https://example.com/summary
                 title: Season update
                 update_version: '1.4.0'
+                patch_note_id: '685265994960078265'
                 created_at: '2026-11-04T04:00:00Z'
         '400':
           $ref: '#/components/responses/ValidationError'
@@ -280,9 +285,10 @@ paths:
                 items:
                   $ref: '#/components/schemas/SteamPatchNote'
               example:
-                - game_id: '10'
+                - patch_note_id: '685265994960078265'
+                  game_id: '10'
                   text_content: Improved matchmaking and fixed crash issues.
-                  link: https://store.steampowered.com/news/app/10
+                  link: https://store.steampowered.com/news/app/10/view/685265994960078265
                   title: Maintenance update
                   update_version: '2026.11.04'
                   published_at: '2026-11-04T03:30:00Z'
@@ -328,6 +334,14 @@ components:
       schema:
         $ref: '#/components/schemas/GameId'
       example: '10'
+    PatchNoteIdQuery:
+      name: patch_note_id
+      in: query
+      required: false
+      description: Return only summaries of the Steam patch note with this patch_note_id.
+      schema:
+        $ref: '#/components/schemas/PatchNoteId'
+      example: '685265994960078265'
   responses:
     ValidationError:
       description: The request is missing or contains invalid data.
@@ -446,6 +460,14 @@ components:
       description: Steam application identifier, a positive integer written as a string.
       pattern: '^[1-9][0-9]{0,9}$'
       example: '10'
+    PatchNoteId:
+      type: string
+      description: >-
+        Steam's identifier for one patch note announcement, a 64-bit unsigned
+        integer written as a string. It does not change when the announcement
+        is edited.
+      pattern: '^[1-9][0-9]{0,19}$'
+      example: '685265994960078265'
     SteamId:
       type: string
       description: 17-digit SteamID64 of the user's Steam account.
@@ -546,6 +568,12 @@ components:
         update_version:
           $ref: '#/components/schemas/UpdateVersion'
           description: Version identifier of the game update.
+        patch_note_id:
+          $ref: '#/components/schemas/PatchNoteId'
+          description: >-
+            Optional patch_note_id of the Steam patch note the summary is
+            about, as GET /steam-patch-notes returns it. A user posts one
+            summary per patch note.
     PatchNoteSummary:
       type: object
       description: A user-posted patch note summary returned by the service.
@@ -574,6 +602,12 @@ components:
         update_version:
           $ref: '#/components/schemas/UpdateVersion'
           description: Version identifier of the game update.
+        patch_note_id:
+          $ref: '#/components/schemas/PatchNoteId'
+          description: >-
+            Optional patch_note_id of the Steam patch note the summary is
+            about, as GET /steam-patch-notes returns it. A user posts one
+            summary per patch note.
         created_at:
           type: string
           format: date-time
@@ -581,8 +615,13 @@ components:
     SteamPatchNote:
       type: object
       description: A patch note retrieved from Steam.
-      required: [game_id, text_content, update_version, published_at]
+      required: [patch_note_id, game_id, text_content, update_version, published_at]
       properties:
+        patch_note_id:
+          $ref: '#/components/schemas/PatchNoteId'
+          description: >-
+            Steam's identifier for the patch note. Send it as patch_note_id
+            when posting a summary of this patch note.
         game_id:
           $ref: '#/components/schemas/GameId'
           description: Steam application identifier for the game.
