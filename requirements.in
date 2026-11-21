@@ -21,3 +21,6 @@ jsonschema-rs>=0.61,<1  # ProblemDetails check in tests/problems.py
 ruff>=0.8,<1
 pip-audit>=2.7,<3
 pip-tools>=7,<8
+
+#lab 5 checks
+prometheus-client>=0.17,<1
