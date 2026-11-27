@@ -13,6 +13,7 @@ That feed is undocumented, so its shape is checked here: a response that does
 not match is reported as Steam being unavailable rather than passed on.
 """
 
+import os
 import re
 from datetime import UTC, datetime
 
@@ -22,7 +23,12 @@ from pydantic import BaseModel, ValidationError
 
 from app.models import SteamPatchNote
 
-EVENTS_URL = "https://store.steampowered.com/events/ajaxgetadjacentpartnerevents/"
+# STEAM_EVENTS_URL points the client at a fake Steam, for reproducing Steam's
+# failures on demand (scripts/reproduce_steam_failure.py). Unset, it is Steam.
+EVENTS_URL = os.environ.get(
+    "STEAM_EVENTS_URL",
+    "https://store.steampowered.com/events/ajaxgetadjacentpartnerevents/",
+)
 MAJOR_UPDATE = 14
 # The most events the feed returns in one response, whatever count_after asks for.
 MAX_EVENTS = 100

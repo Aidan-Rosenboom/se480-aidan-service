@@ -11,10 +11,10 @@ from app.models import User, UserInput, Uuid
 
 router = APIRouter()
 
-# The event the failure that matters turns on: a registration refused because
-# the Steam ID is already registered. When two requests for one Steam ID are in
-# flight together (tests/test_concurrency.py), both pass the check and this
-# stays still: a count that should have moved and did not.
+# A registration refused because the Steam ID is already registered. When two
+# requests for one Steam ID are in flight together (tests/test_concurrency.py,
+# a known limit), both pass the check and this stays still: a count that should
+# have moved and did not.
 STEAM_ID_CONFLICTS = Counter(
     "steam_id_conflicts_total",
     "Registrations refused with a 409 because the Steam ID was already registered.",

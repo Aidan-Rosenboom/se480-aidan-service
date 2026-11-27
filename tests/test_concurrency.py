@@ -1,7 +1,9 @@
-"""Lab 5, task 6: the failure that matters, reproduced on demand.
+"""A known limit, reproduced on demand: one Steam account registered twice.
 
-Two requests registering the same Steam account, in flight together. Each one
-runs the duplicate check before either user is stored, so each one passes it.
+This is not the proposal's failure that matters (that is the Steam call, in
+tests/test_steam_failure.py); it was found while looking for it. Two requests
+registering the same Steam account, in flight together. Each one runs the
+duplicate check before either user is stored, so each one passes it.
 The barrier below is what makes that happen every time: it holds both requests
 at the same point, just after the check, and releases them together. The window
 is widened here, in the test, and never in the service.

@@ -114,8 +114,8 @@ schema, like `/health`, and is neither logged nor counted itself.
 | --- | --- | --- |
 | `http_requests_total` | `route`, `status` | Requests, by route template and status class (`2xx`, `4xx`, `5xx`) |
 | `http_request_duration_seconds` | `route` | A histogram of response times. Buckets at 0.05, 0.1, 0.25, 0.5, 1, **2.5** and 5 seconds; 2.5 is the SLO's bound (`docs/slo.md`) |
-| `steam_id_conflicts_total` | none | Registrations refused with a 409 because the Steam ID was already registered: the rule the failure that matters turns on |
-| `steam_requests_total` | `outcome` | Calls to Steam's events feed: `ok`, `not_found`, `unavailable` or `error`, which tells a Steam outage from a fault here |
+| `steam_requests_total` | `outcome` | Calls to Steam's events feed: `ok`, `not_found`, `unavailable` or `error`. The failure that matters (the proposal's) is at this call, and this tells a Steam outage from a fault here |
+| `steam_id_conflicts_total` | none | Registrations refused with a 409 because the Steam ID was already registered |
 
 Labels are only ever the route template, the status class or a fixed outcome,
 never an id or a name: each distinct label value makes a new series, so a
@@ -126,8 +126,46 @@ restart**, and on Render's free instance, which sleeps after 15 idle minutes,
 that is often. A number read from `/metrics` covers only the time since
 `started_at` in `/health`.
 
+### Breaking it on purpose (Lab 5, task 6)
+
+**Break 1: a deploy the platform can see.** Setting `LAB5_FAIL_STARTUP=1` in
+the service's environment on Render makes the next deploy refuse to start
+(`fail_startup_if_asked` in `app/observability.py`); removing the variable and
+deploying again repairs it. `main` is never touched.
+
+- **What I did, and when:** <time set; time removed>
+- **What a user would have seen:** <did the deployed URL keep answering?>
+- **Events page and deploy log:** <what each showed>
+- **`/health` during the break:** <status, started_at and commit it reported, and whether that was the old deploy>
+- **Who was told, and how soon:** <email subject line, and its time against the time of the deploy>
+
+**Break 2: the failure that matters.** The proposal names
+`GET /v1/steam-patch-notes`: Steam answering with the wrong game, stale or
+malformed data, or not at all. `python scripts/reproduce_steam_failure.py`
+reproduces it against a fake Steam, with no Render or real Steam involved, and
+`tests/test_steam_failure.py` holds it as an expected failure. Five requests
+for Last Epoch (app 899770) in each phase:
+
+| Signal | Steam down (502) | Steam returns another game (Dota 2, app 570) |
+| --- | --- | --- |
+| What the user saw | 503, problem details: "Steam's API is temporarily unavailable." | **200, with Dota 2's patch notes** |
+| Log | A `WARNING` "Steam unavailable for game 899770" and an `ERROR` request line, each with the request id | Five `INFO` lines, status 200: **nothing to tell them apart from good requests** |
+| `/metrics` | `steam_requests_total{outcome="unavailable"}` +5, the route's `5xx` +5 | `steam_requests_total{outcome="ok"}` +5, the route's `2xx` +5: **counted as success** |
+| `/health` | `ok`, `started_at` unchanged | `ok`, `started_at` unchanged |
+| Who was told | Nobody. Render emails on a failed deploy or a failing health check, and `/health` stayed ok | Nobody |
+
+Steam being down is loud: the log, the counter and the SLI all see it, though
+no one is notified. The wrong game is silent: every signal the service has
+reports what it believes, and it believes a well-formed answer from Steam.
+That gap is the Detection section of `docs/postmortem.md`. It is not fixed in
+Lab 5.
+
 ## Known limits
 
+- **Steam's answer is not checked against the question.** The Steam client
+  never compares the `appid` of the events Steam returns with the game that
+  was asked about, so a wrong-game answer reaches the player as a 200 and is
+  counted as success (see Breaking it on purpose, above).
 - **`/metrics` is public.** Anyone with the URL can read the request counts.
   That is fine for this course; in production it would sit behind
   authentication or on a private network.
