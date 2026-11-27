@@ -3,12 +3,22 @@
 from uuid import uuid4
 
 from fastapi import APIRouter, Request, Response
+from prometheus_client import Counter
 
 from app import rules, store
 from app.errors import ConflictError, NotFoundError, ProblemDetails
 from app.models import User, UserInput, Uuid
 
 router = APIRouter()
+
+# The event the failure that matters turns on: a registration refused because
+# the Steam ID is already registered. When two requests for one Steam ID are in
+# flight together (tests/test_concurrency.py), both pass the check and this
+# stays still: a count that should have moved and did not.
+STEAM_ID_CONFLICTS = Counter(
+    "steam_id_conflicts_total",
+    "Registrations refused with a 409 because the Steam ID was already registered.",
+)
 ERROR_RESPONSES = {
     400: {"model": ProblemDetails},
     404: {"model": ProblemDetails},
@@ -49,6 +59,7 @@ def create_user(
             steam_id=payload.steam_id,
         )
     except ValueError as exc:
+        STEAM_ID_CONFLICTS.inc()
         raise ConflictError(
             str(exc),
             conflicts_with={"steam_id": payload.steam_id},

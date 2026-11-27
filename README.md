@@ -19,7 +19,7 @@ A clean run means that make check or all of these checks passed without issues, 
 ## Run it
 Open the repository in the configured dev container, then:
 
-    uvicorn app.main:app --reload --port 8000
+    uvicorn app.main:app --reload --port 8000 --no-access-log
 
 Run the sample client against the local service or the deployed service:
 
@@ -29,6 +29,115 @@ Run the sample client against the local service or the deployed service:
 The client lists users, creates an example user, and repeats the creation to
 demonstrate the API's conflict response. A sleeping deployed service may take
 a moment to wake up.
+
+## Operate it
+
+### Request IDs and logs
+
+Every response, errors included, carries an `X-Request-ID` header, and every
+request writes exactly one JSON line to standard output when its response is
+sent:
+
+    {"ts":"2026-11-27T02:12:16.239Z","level":"INFO","request_id":"aidan-test-1","method":"GET","route":"/v1/users/{user_id}","status":404,"duration_ms":11}
+
+- `ts` is UTC, to the millisecond. `duration_ms` is a whole number of
+  milliseconds from the request arriving to the response being sent.
+- `route` is the route template, not the raw path, so requests group by
+  endpoint and no id from a path reaches the log. It is `unmatched` when no
+  route matched.
+- `level` is `ERROR` for a 5xx and `INFO` for everything else: a 4xx is the
+  service working, telling a caller no.
+- `/health` and `/metrics` are not logged: Render polls `/health`, and those
+  lines would bury the requests users send.
+- Any other log record a request produces (the traceback of an unhandled
+  error, the warning when Steam does not answer) is also one JSON line, with
+  `ts`, `level`, `request_id` and `message`, plus `exc_info` for a traceback.
+  It carries the same `request_id`, so one search for the id finds the whole
+  story:
+
+      grep '"request_id":"aidan-test-1"' service.log
+
+**Incoming ids are accepted if valid.** A caller or proxy that sends its own
+`X-Request-ID` gets that id back and in the log, so it can trace one request
+across systems. The id goes straight into the log, so it is accepted only if
+it is 8–64 characters of letters, digits, `.`, `_` or `-`; anything else
+(a quote or newline that could forge a log line, an oversized value) is
+ignored and the service makes its own id, 16 random hex characters.
+
+**uvicorn's access log is off** (`--no-access-log` in the Makefile, the
+Dockerfile and the run command above). It would duplicate the request line
+without the request id, the route template or the duration, so it is dropped
+to keep one line per request.
+
+Find a request by its id in a local run:
+
+    make run 2>&1 | tee service.log
+    grep aidan-test-1 service.log
+
+### Health and the platform
+
+`/health` answers 200 with `"status": "ok"` whenever the process is up, and
+says enough to tell one run of the service from the next:
+
+    {"status":"ok","started_at":"2026-11-27T02:55:20Z","uptime_seconds":0,"commit":"fa7c984","store":{"users":1,"summaries":0}}
+
+- `started_at` and `uptime_seconds` say when this process started. `commit` is
+  the first seven characters of `RENDER_GIT_COMMIT`, which Render sets on every
+  deploy, and `unknown` on a local run.
+- `store` is how many users and summaries the service holds: counts, never
+  contents. The store is in memory, so **a restart is visible from outside**:
+  `started_at` moves and both counts fall to zero.
+- It stays cheap: it reads two lengths and the clock, and never calls Steam,
+  so a Steam outage does not make the platform think the service is down.
+
+Three decisions, recorded here because they live in the Render dashboard:
+
+1. **Health Check Path is `/health`** (Settings → Health Checks). Without it,
+   Render only checks that the port accepts a connection, so a service that
+   started but cannot answer would still count as healthy.
+2. **Notifications are set to Only failure notifications, by email**
+   (Settings → Notifications). The default is None, which tells nobody about a
+   failed deploy.
+3. **Render's health checks are neither logged nor counted.** Render calls
+   `/health` every few seconds; those calls are not users. Logged, they would
+   bury the request lines; counted, they would add thousands of fast 200s to
+   `http_requests_total` and make the SLI look better than what users get.
+   `/metrics` is left out for the same reason. Both paths are listed in
+   `QUIET_PATHS` in `app/observability.py`.
+
+### Metrics
+
+`/metrics` serves the Prometheus text format. It is kept out of the OpenAPI
+schema, like `/health`, and is neither logged nor counted itself.
+
+| Metric | Labels | What it counts |
+| --- | --- | --- |
+| `http_requests_total` | `route`, `status` | Requests, by route template and status class (`2xx`, `4xx`, `5xx`) |
+| `http_request_duration_seconds` | `route` | A histogram of response times. Buckets at 0.05, 0.1, 0.25, 0.5, 1, **2.5** and 5 seconds; 2.5 is the SLO's bound (`docs/slo.md`) |
+| `steam_id_conflicts_total` | none | Registrations refused with a 409 because the Steam ID was already registered: the rule the failure that matters turns on |
+| `steam_requests_total` | `outcome` | Calls to Steam's events feed: `ok`, `not_found`, `unavailable` or `error`, which tells a Steam outage from a fault here |
+
+Labels are only ever the route template, the status class or a fixed outcome,
+never an id or a name: each distinct label value makes a new series, so a
+user id as a label would grow one series per user.
+
+The counters live in the process. **They start again from zero on every
+restart**, and on Render's free instance, which sleeps after 15 idle minutes,
+that is often. A number read from `/metrics` covers only the time since
+`started_at` in `/health`.
+
+## Known limits
+
+- **`/metrics` is public.** Anyone with the URL can read the request counts.
+  That is fine for this course; in production it would sit behind
+  authentication or on a private network.
+- **The counters reset on every restart**, so `/metrics` alone cannot measure
+  a seven-day SLO window (see `docs/slo.md`).
+- **Two registrations for one Steam ID, in flight together, both succeed.**
+  The duplicate check and the write are two steps with nothing holding the
+  Steam ID between them. `tests/test_concurrency.py` reproduces it on demand
+  and is marked as an expected failure until it is fixed. When it happens,
+  `steam_id_conflicts_total` does not move: nothing in the service notices.
 
 ## Test it
 

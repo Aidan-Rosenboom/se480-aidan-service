@@ -17,6 +17,7 @@ import re
 from datetime import UTC, datetime
 
 import httpx
+from prometheus_client import Counter
 from pydantic import BaseModel, ValidationError
 
 from app.models import SteamPatchNote
@@ -28,6 +29,22 @@ MAX_EVENTS = 100
 TIMEOUT_SECONDS = 10.0
 
 _VERSION = re.compile(r"\b\d+(?:\.\d+)+\b")
+
+
+# Every call to Steam's events feed, by how it ended. The generic
+# http_requests_total shows a 503 from this service; this says whether the
+# cause was Steam (unavailable) or a game Steam does not know (not_found), so an
+# outage upstream can be told apart from a fault in this service.
+STEAM_REQUESTS = Counter(
+    "steam_requests_total",
+    "Calls to Steam's events feed, by outcome: ok, not_found, unavailable or error.",
+    ["outcome"],
+)
+OUTCOMES = ("ok", "not_found", "unavailable", "error")
+for _outcome in OUTCOMES:
+    # Start every series at zero, so a query or alert on one finds it before
+    # the first failure rather than seeing no data.
+    STEAM_REQUESTS.labels(outcome=_outcome)
 
 
 class SteamUnavailable(Exception):
@@ -72,6 +89,23 @@ class SteamClient:
         self._transport = transport
 
     def events(self, app_id: str, *, event_type: int) -> list[_Event]:
+        """The app's events of one type; every call is counted by its outcome."""
+        outcome = "error"
+        try:
+            found = self._fetch_events(app_id, event_type=event_type)
+        except GameNotFound:
+            outcome = "not_found"
+            raise
+        except SteamUnavailable:
+            outcome = "unavailable"
+            raise
+        else:
+            outcome = "ok"
+            return found
+        finally:
+            STEAM_REQUESTS.labels(outcome=outcome).inc()
+
+    def _fetch_events(self, app_id: str, *, event_type: int) -> list[_Event]:
         params = {
             "appid": app_id,
             "count_before": 0,
