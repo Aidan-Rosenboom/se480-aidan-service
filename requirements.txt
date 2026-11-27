@@ -161,7 +161,7 @@ rich==15.0.0
     # via
     #   pip-audit
     #   schemathesis
-ruff==0.17.5
+ruff==0.17.6
     # via -r requirements.in
 schemathesis==4.33.4
     # via -r requirements.in
@@ -181,15 +181,11 @@ truststore==0.10.5
     #   httpx2
 typing-extensions==4.16.0
     # via
-    #   anyio
-    #   cyclonedx-python-lib
     #   fastapi
-    #   httpx2
     #   opentelemetry-api
     #   pydantic
     #   pydantic-core
     #   schemathesis
-    #   starlette
     #   typing-inspection
 typing-inspection==0.4.5
     # via
