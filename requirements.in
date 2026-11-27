@@ -14,7 +14,7 @@ pytest>=8,<10
 pytest-cov>=5,<8
 httpx2>=2.16,<3       # sample client
 pyyaml>=6,<7
-schemathesis>=4,<5
+schemathesis>=4.34.1,<5
 jsonschema-rs>=0.61,<1  # ProblemDetails check in tests/problems.py
 
 # Lab 4 checks
