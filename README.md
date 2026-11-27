@@ -133,11 +133,11 @@ the service's environment on Render makes the next deploy refuse to start
 (`fail_startup_if_asked` in `app/observability.py`); removing the variable and
 deploying again repairs it. `main` is never touched.
 
-- **What I did, and when:** <time set; time removed>
-- **What a user would have seen:** <did the deployed URL keep answering?>
-- **Events page and deploy log:** <what each showed>
-- **`/health` during the break:** <status, started_at and commit it reported, and whether that was the old deploy>
-- **Who was told, and how soon:** <email subject line, and its time against the time of the deploy>
+- **What I did, and when:** "started_at":"2026-11-27T03:46:23Z","uptime_seconds":109,"commit":"289ef91"
+- **What a user would have seen:** The user would have seen the API endpoints from the previous that were currrently working.
+- **Events page and deploy log:** Events page showed the failed deploy event and the deploy log showed the message: LAB5_FAIL_STARTUP=1: refusing to start, on purpose (Lab 5, task 6).
+- **`/health` during the break:** {"status":"ok","started_at":"2026-11-27T03:46:23Z","uptime_seconds":1146,"commit":"289ef91","store":{"users":0,"summaries":0}}
+- **Who was told, and how soon:** My email was told at 9:52pm with the subject line deploy failed for se480-aidan-service
 
 **Break 2: the failure that matters.** The proposal names
 `GET /v1/steam-patch-notes`: Steam answering with the wrong game, stale or
@@ -162,10 +162,21 @@ Lab 5.
 
 ## Known limits
 
-- **Steam's answer is not checked against the question.** The Steam client
-  never compares the `appid` of the events Steam returns with the game that
-  was asked about, so a wrong-game answer reaches the player as a 200 and is
-  counted as success (see Breaking it on purpose, above).
+- **Steam's answer is not checked against the question** (the failure that
+  matters). The Steam client never compares the `appid` of the events Steam
+  returns with the game that was asked about, so a wrong-game answer reaches
+  the player as a 200 and is counted as success. Reproduction:
+  [scripts/reproduce_steam_failure.py](./scripts/reproduce_steam_failure.py)
+  and the expected-failure test
+  [tests/test_steam_failure.py](./tests/test_steam_failure.py). Postmortem:
+  [docs/postmortem.md](./docs/postmortem.md). The fix is planned for the
+  final.
+- **Nobody is told what the metrics show.** Render emails about failed
+  deploys and failing health checks, not about the service's own counters, so
+  Steam being down (`steam_requests_total{outcome="unavailable"}` rising) or
+  the SLI dropping reaches a person only if they read `/metrics` or the log.
+- **Stale patch notes are not detected.** An old post served as the latest
+  passes every check, until the data-quality checks planned for the final.
 - **`/metrics` is public.** Anyone with the URL can read the request counts.
   That is fine for this course; in production it would sit behind
   authentication or on a private network.
@@ -173,7 +184,8 @@ Lab 5.
   a seven-day SLO window (see `docs/slo.md`).
 - **Two registrations for one Steam ID, in flight together, both succeed.**
   The duplicate check and the write are two steps with nothing holding the
-  Steam ID between them. `tests/test_concurrency.py` reproduces it on demand
+  Steam ID between them.
+  [tests/test_concurrency.py](./tests/test_concurrency.py) reproduces it on demand
   and is marked as an expected failure until it is fixed. When it happens,
   `steam_id_conflicts_total` does not move: nothing in the service notices.
 
@@ -219,8 +231,10 @@ change so Node.js and `npx` are installed.
   README.
 
 ## What's here
-- app/ — the service
-- tests/ — the smoke test
+- app/ — the service; `app/observability.py` is the request-id, logging and metrics middleware
+- tests/ — unit, contract, observability and expected-failure tests
+- scripts/ — the deployed smoke check, the SLO measurement and the failure reproduction
+- docs/ — the proposal, the SLO and the postmortem
 - .devcontainer/ — the development environment
 - .github/workflows/ci.yml — CI
 - openapi.yaml — API contract and Prism mock-server source
@@ -293,3 +307,38 @@ changes to my openapi.yaml, tests, errors.py, rules.py, most py files in the app
 
 # Lab 4 AI usage
 I used claude opus 5.5 to help me learn more about the Validation Hardening section, write some tests, and clean up my repository overall while prioritizing learning from what it found and what it was doing.
+
+# Lab 5 help received
+
+- The course's Lab 5 template project supplied the starting point for
+  `app/observability.py` (the middleware), `docs/slo.md`,
+  `docs/postmortem.md` and `tests/test_concurrency.py`. Each was rewritten
+  for this service; the structure is the template's.
+- <name anyone else who helped, or say no one did>
+
+# Lab 5 AI tools used
+
+I used Claude Code (Claude Opus 5.5) throughout Lab 5, walking through the
+tasks one at a time and reviewing each change before moving on.
+
+- **The middleware:** the course template supplied it. Claude changed it for
+  this service: it takes the route template from the OpenAPI document,
+  because FastAPI 0.165 leaves the `/v1` prefix off; it writes every other log
+  record as JSON with the same request id; and it removed an import from the
+  template that this service does not have. Claude also changed the
+  last-resort handler in `app/errors.py` to log the route and request id
+  instead of the path.
+- **Metrics:** Claude added `steam_requests_total` and
+  `steam_id_conflicts_total`, and the `STEAM_EVENTS_URL` setting used to
+  point the service at a fake Steam.
+- **Tests:** Claude wrote `tests/test_observability.py`, and adapted
+  `tests/test_concurrency.py` and `tests/test_steam_failure.py` from the
+  template's concurrency test.
+- **Scripts:** Claude wrote `scripts/measure_slo.py` and
+  `scripts/reproduce_steam_failure.py`.
+- **Documents:** Claude drafted `docs/slo.md`, `docs/postmortem.md` and the
+  README's Operate it and Known limits sections from the templates and from
+  the measurements and reproduction; I reviewed them.
+- **Done by me:** the Render settings (health check path, notifications), the
+  platform break and its repair, and the evidence recorded from the Render
+  dashboard and my inbox.
