@@ -12,6 +12,8 @@ from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.routing import Match, compile_path
 
+from app import observability
+
 log = logging.getLogger("app")
 
 PROBLEM_BASE = "https://api.example.com/problems/"
@@ -274,11 +276,29 @@ def install(app: FastAPI) -> None:
         # goes to the server log, which is where a person debugging it looks.
         # Note for tests: TestClient re-raises server errors unless created with
         # raise_server_exceptions=False.
-        log.exception("unhandled error on %s %s", request.method, request.url.path)
-        return problem_response(
+        #
+        # The log names the route template, never request.url.path: the path of
+        # /v1/users/{user_id} carries the id that leads to a person's name and
+        # Steam ID. The request id is stamped on the record by observability, and
+        # the caller is asked to quote it, which is what finds this traceback.
+        route = observability.route_template(request)
+        log.exception(
+            "unhandled error on %s %s",
+            request.method,
+            route,
+            extra={"method": request.method, "route": route},
+        )
+        # This handler runs outside the request-id middleware (Starlette's
+        # ServerErrorMiddleware wraps every user middleware), so the header the
+        # middleware adds to other responses has to be added here.
+        request_id = request.scope.get("state", {}).get("request_id")
+        response = problem_response(
             request,
             InternalServerError(
-                "The service could not complete the request. Try again; "
-                "if it keeps failing, report the time and the path."
+                "The service could not complete the request. Try again; if it keeps "
+                f"failing, report it and quote request id {request_id or 'from the X-Request-ID header'}."
             ),
         )
+        if request_id:
+            response.headers["X-Request-ID"] = request_id
+        return response

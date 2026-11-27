@@ -98,6 +98,12 @@ def test_user_path_requires_hyphenated_uuid(client):
         ("update_version", ".1"),
         ("update_version", "1.0 beta"),
         ("update_version", "v" * 51),
+        ("patch_note_id", ""),
+        ("patch_note_id", "0"),
+        ("patch_note_id", "0685265994960078265"),
+        ("patch_note_id", "1" * 21),
+        ("patch_note_id", "abc"),
+        ("patch_note_id", None),
         ("link", "ftp://example.com/file"),
         ("link", "example.com/no-scheme"),
         ("link", "https://example.com/" + "a" * 2048),
@@ -119,6 +125,7 @@ def test_create_summary_accepts_limits(client, user_id):
         text_content="x" * 10000,
         title="t" * 200,
         update_version="v1.4.0-beta+build_7",
+        patch_note_id="18446744073709551615",
         link="http://example.com/notes",
     )
     response = client.post("/v1/patch-note-summaries", json=body)

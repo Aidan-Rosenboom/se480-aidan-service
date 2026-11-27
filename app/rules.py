@@ -36,12 +36,22 @@ def ensure_summary_is_unique(
     user_id: UUID,
     game_id: str,
     update_version: str,
+    patch_note_id: str | None = None,
 ) -> None:
-    """A user posts at most one summary per game update."""
+    """A user posts at most one summary per game update.
+
+    When both summaries name a patch_note_id, that decides which update they
+    are about; update_version is only a label and two patch notes can share
+    it. When either summary lacks one, update_version is all there is to go on.
+    """
+
+    def same_update(summary: PatchNoteSummary) -> bool:
+        if patch_note_id is not None and summary.patch_note_id is not None:
+            return summary.patch_note_id == patch_note_id
+        return summary.update_version == update_version
+
     if any(
-        summary.user_id == user_id
-        and summary.game_id == game_id
-        and summary.update_version == update_version
+        summary.user_id == user_id and summary.game_id == game_id and same_update(summary)
         for summary in summaries
     ):
         raise ValueError(

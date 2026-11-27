@@ -8,7 +8,7 @@ from fastapi import APIRouter, Query, Request, Response
 
 from app import rules, store
 from app.errors import ConflictError, NotFoundError, ProblemDetails
-from app.models import GameId, PatchNoteSummary, PatchNoteSummaryInput, Uuid
+from app.models import GameId, PatchNoteId, PatchNoteSummary, PatchNoteSummaryInput, Uuid
 
 router = APIRouter()
 ERROR_RESPONSES = {
@@ -29,8 +29,14 @@ ERROR_RESPONSES = {
 )
 def list_patch_note_summaries(
     game_id: Annotated[GameId, Query()],
+    patch_note_id: Annotated[PatchNoteId | None, Query()] = None,
 ) -> list[PatchNoteSummary]:
-    return [summary for summary in store.summaries.values() if summary.game_id == game_id]
+    return [
+        summary
+        for summary in store.summaries.values()
+        if summary.game_id == game_id
+        and (patch_note_id is None or summary.patch_note_id == patch_note_id)
+    ]
 
 
 @router.post(
@@ -57,16 +63,17 @@ def create_patch_note_summary(
             user_id=payload.user_id,
             game_id=payload.game_id,
             update_version=payload.update_version,
+            patch_note_id=payload.patch_note_id,
         )
     except ValueError as exc:
-        raise ConflictError(
-            str(exc),
-            conflicts_with={
-                "user_id": str(payload.user_id),
-                "game_id": payload.game_id,
-                "update_version": payload.update_version,
-            },
-        ) from exc
+        conflicts_with = {
+            "user_id": str(payload.user_id),
+            "game_id": payload.game_id,
+            "update_version": payload.update_version,
+        }
+        if payload.patch_note_id is not None:
+            conflicts_with["patch_note_id"] = payload.patch_note_id
+        raise ConflictError(str(exc), conflicts_with=conflicts_with) from exc
 
     summary = PatchNoteSummary(
         summary_id=uuid4(),

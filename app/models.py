@@ -40,6 +40,8 @@ def _canonical_uuid(value: Any) -> Any:
 Uuid = Annotated[UUID, BeforeValidator(_canonical_uuid)]
 
 GameId = Annotated[str, StringConstraints(pattern=r"^[1-9][0-9]{0,9}$")]
+# Steam's gid for an announcement: a 64-bit unsigned integer written as a string.
+PatchNoteId = Annotated[str, StringConstraints(pattern=r"^[1-9][0-9]{0,19}$")]
 SteamId = Annotated[str, StringConstraints(pattern=r"^[0-9]{17}$")]
 PersonName = Annotated[str, StringConstraints(min_length=1, max_length=100, pattern=r"\S")]
 SummaryText = Annotated[str, StringConstraints(min_length=1, max_length=10000, pattern=r"\S")]
@@ -134,8 +136,12 @@ class PatchNoteSummaryFields(APIModel):
         description="Optional title for the summary.",
     )
     update_version: UpdateVersion = Field(description="Version identifier of the game update.")
+    patch_note_id: PatchNoteId | None = Field(
+        default=None,
+        description="Optional patch_note_id of the Steam patch note the summary is about.",
+    )
 
-    @field_validator("link", "title", mode="before")
+    @field_validator("link", "title", "patch_note_id", mode="before")
     @classmethod
     def _optional_is_not_nullable(cls, value: Any) -> Any:
         # The spec makes these optional (may be left out), not nullable
@@ -163,6 +169,9 @@ class PatchNoteSummary(PatchNoteSummaryFields):
 class SteamPatchNote(APIModel):
     """A patch note retrieved from Steam."""
 
+    patch_note_id: PatchNoteId = Field(
+        description="Steam's identifier for the patch note; stable across edits.",
+    )
     game_id: GameId = Field(description="Steam application identifier for the game.")
     text_content: str = Field(description="Patch note content retrieved from Steam.")
     link: HttpLink | None = Field(default=None, description="URL of the patch note on Steam.")
